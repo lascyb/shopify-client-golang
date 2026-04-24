@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const defaultAPIVersion = "lastest"
+const defaultAPIVersion = "2026-04"
 
 // Config 表示 Shopify Admin GraphQL 客户端的最终配置。
 type Config struct {

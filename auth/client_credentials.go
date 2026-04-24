@@ -57,24 +57,24 @@ func (p *ClientCredentialsAuth) AccessToken(ctx context.Context) (string, error)
 	if p == nil {
 		return "", fmt.Errorf("shopify: client credentials auth 未初始化")
 	}
-
-	now := time.Now()
-	p.mu.Lock()
-	if p.accessToken != "" && now.Before(p.expiresAt.Add(-p.expireSkew)) {
-		token := p.accessToken
-		p.mu.Unlock()
-		return token, nil
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	p.mu.Unlock()
 
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// 检查缓存是否有效（提前 expireSkew 刷新）
+	if p.accessToken != "" && time.Now().Before(p.expiresAt.Add(-p.expireSkew)) {
+		return p.accessToken, nil
+	}
+
+	// 参数校验
 	if strings.TrimSpace(p.clientID) == "" {
 		return "", fmt.Errorf("shopify: clientID 不能为空")
 	}
 	if strings.TrimSpace(p.clientSecret) == "" {
 		return "", fmt.Errorf("shopify: clientSecret 不能为空")
-	}
-	if ctx == nil {
-		return "", fmt.Errorf("shopify: ctx 不能为空")
 	}
 	if strings.TrimSpace(p.domain) == "" {
 		return "", fmt.Errorf("shopify: client credentials auth 未绑定 shopDomain")
@@ -83,15 +83,15 @@ func (p *ClientCredentialsAuth) AccessToken(ctx context.Context) (string, error)
 		return "", fmt.Errorf("shopify: client credentials auth 未绑定 httpClient")
 	}
 
+	// 在锁内刷新 token
 	accessToken, expiresAt, err := p.fetchClientCredentialsAccessToken(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	p.mu.Lock()
+	// 更新缓存
 	p.accessToken = accessToken
 	p.expiresAt = expiresAt
-	p.mu.Unlock()
 
 	return accessToken, nil
 }
